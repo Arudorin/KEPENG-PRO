@@ -1,0 +1,6 @@
+{
+  "name": "KEPENG PRO",
+  "description": "Aplikasi manajemen keuangan pribadi offline-first berdaulat dengan pelacak hutang, cicilan, dan arus kas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
