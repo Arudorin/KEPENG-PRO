@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,12 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -50,9 +57,8 @@ import com.example.feature.transaction.TransactionListScreen
 import androidx.compose.ui.graphics.Color
 import com.example.ui.theme.BackgroundRoot
 import com.example.ui.theme.NeonCrimson
-import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.Rajdhani
-import com.example.ui.theme.SpaceGrotesk
+import com.example.ui.theme.SurfaceElevated
 import com.example.ui.theme.SurfaceBase
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextTertiary
@@ -73,6 +79,26 @@ fun MainApp(viewModel: MainViewModel) {
     val isUnlocked by viewModel.isUnlocked.collectAsStateWithLifecycle()
 
     val coroutineScope = rememberCoroutineScope()
+
+    // Hoisted above the overlay branches so the visible tab survives the add/edit form.
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 4 })
+    val snackbarHostState = remember { SnackbarHostState() }
+    var pendingUndo by remember { mutableStateOf<TransactionEntity?>(null) }
+
+    // Undo lives here, not in the list screen: a delete confirmed from the edit form
+    // must still be undoable after the form closes on whichever tab is showing.
+    LaunchedEffect(pendingUndo) {
+        val deleted = pendingUndo ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Transaksi dihapus",
+            actionLabel = "Urungkan",
+            duration = SnackbarDuration.Long
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.restoreTransaction(deleted)
+        }
+        pendingUndo = null
+    }
 
     // Overlay screen states
     var isSettingsOpen by remember { mutableStateOf(false) }
@@ -127,6 +153,13 @@ fun MainApp(viewModel: MainViewModel) {
                     }
                 }
             },
+            onDelete = transactionToEdit?.let { tx ->
+                {
+                    viewModel.deleteTransaction(tx)
+                    pendingUndo = tx
+                    transactionToEdit = null
+                }
+            },
             onBack = {
                 isAddingTransaction = false
                 transactionToEdit = null
@@ -177,9 +210,6 @@ fun MainApp(viewModel: MainViewModel) {
         return
     }
 
-    // Main 4-Tab Interface with HorizontalPager Swipe Support
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 4 })
-
     // Handle back button when on sub-tabs
     BackHandler(enabled = pagerState.currentPage != 0) {
         coroutineScope.launch {
@@ -201,17 +231,23 @@ fun MainApp(viewModel: MainViewModel) {
 
     Scaffold(
         containerColor = BackgroundRoot,
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = SurfaceElevated,
+                    contentColor = TextPrimary,
+                    actionColor = NeonCrimson,
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
         bottomBar = {
             NavigationBar(
-                containerColor = Color(0xF508080E),
+                containerColor = SurfaceBase,
                 tonalElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(
-                        width = 1.dp,
-                        color = Color(0x40FF003C),
-                        shape = androidx.compose.ui.graphics.RectangleShape
-                    )
                     .navigationBarsPadding()
             ) {
                 MainTab.values().forEachIndexed { index, tab ->
@@ -240,11 +276,11 @@ fun MainApp(viewModel: MainViewModel) {
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = TextPrimary,
+                            selectedIconColor = NeonCrimson,
                             selectedTextColor = NeonCrimson,
                             unselectedIconColor = TextTertiary,
                             unselectedTextColor = TextTertiary,
-                            indicatorColor = NeonCrimson.copy(alpha = 0.35f)
+                            indicatorColor = NeonCrimson.copy(alpha = 0.12f)
                         ),
                         modifier = Modifier.testTag("nav_item_${tab.name.lowercase()}")
                     )
@@ -278,8 +314,7 @@ fun MainApp(viewModel: MainViewModel) {
                             coroutineScope.launch { pagerState.animateScrollToPage(2) }
                         },
                         onNavigateSettings = { isSettingsOpen = true },
-                        onEditTransaction = { tx -> transactionToEdit = tx },
-                        onDeleteTransaction = { tx -> viewModel.deleteTransaction(tx) }
+                        onEditTransaction = { tx -> transactionToEdit = tx }
                     )
                 }
 
@@ -290,9 +325,7 @@ fun MainApp(viewModel: MainViewModel) {
                         categories = allCategories,
                         currentPeriod = currentPeriod,
                         onAddTransaction = { isAddingTransaction = true },
-                        onEditTransaction = { tx -> transactionToEdit = tx },
-                        onDeleteTransaction = { tx -> viewModel.deleteTransaction(tx) },
-                        onRestoreTransaction = { tx -> viewModel.restoreTransaction(tx) }
+                        onEditTransaction = { tx -> transactionToEdit = tx }
                     )
                 }
 
@@ -316,6 +349,8 @@ fun MainApp(viewModel: MainViewModel) {
                         categorySpends = categorySpends,
                         categories = allCategories,
                         allPeriodTransactions = periodTransactions,
+                        accounts = activeAccounts,
+                        totalBalance = totalBalance,
                         onPreviousPeriod = { viewModel.previousPeriod() },
                         onNextPeriod = { viewModel.nextPeriod() },
                         onCategoryDrillDown = {

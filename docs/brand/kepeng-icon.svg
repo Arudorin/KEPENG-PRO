@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>KEPENG icon</title>
+  <desc>Huruf K di dalam cincin koin coral dengan titik mint.</desc>
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF8C77"/><stop offset="1" stop-color="#E85E45"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="#1B1B17"/>
+  <path d="M662 252 A300 300 0 1 1 794 409" fill="none" stroke="url(#ring)" stroke-width="56" stroke-linecap="round"/>
+  <path d="M450 340 L450 684" stroke="#F3F0E8" stroke-width="56" stroke-linecap="round"/>
+  <path d="M478 512 L610 340" stroke="#F3F0E8" stroke-width="56" stroke-linecap="round"/>
+  <path d="M478 512 L610 684" stroke="#F3F0E8" stroke-width="56" stroke-linecap="round"/>
+  <circle cx="742" cy="319" r="34" fill="#55D6A0"/>
+</svg>

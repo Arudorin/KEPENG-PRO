@@ -1,7 +1,6 @@
 package com.example.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -12,15 +11,15 @@ import androidx.core.view.WindowCompat
 
 private val KepengDarkColorScheme = darkColorScheme(
     primary = NeonCrimson,
-    onPrimary = TextPrimary,
-    primaryContainer = DeepCarmine,
-    onPrimaryContainer = TextPrimary,
-    secondary = DeepCarmine,
+    onPrimary = OnAccent,
+    primaryContainer = CrimsonContainer,
+    onPrimaryContainer = NeonCrimson,
+    secondary = SurfaceElevated,
     onSecondary = TextPrimary,
     secondaryContainer = CrimsonContainer,
     onSecondaryContainer = NeonCrimson,
     tertiary = TacticalMint,
-    onTertiary = BackgroundRoot,
+    onTertiary = OnAccent,
     tertiaryContainer = MintContainer,
     onTertiaryContainer = TacticalMint,
     background = BackgroundRoot,
@@ -32,14 +31,11 @@ private val KepengDarkColorScheme = darkColorScheme(
     outline = OutlineHairline,
     outlineVariant = OutlineBorder,
     error = NeonCrimson,
-    onError = TextPrimary
+    onError = OnAccent
 )
 
 @Composable
-fun KepengTheme(
-    darkTheme: Boolean = true, // KEPENG is built with a sovereign dark cockpit design system
-    content: @Composable () -> Unit
-) {
+fun KepengTheme(content: @Composable () -> Unit) {
     val colorScheme = KepengDarkColorScheme
 
     val view = LocalView.current

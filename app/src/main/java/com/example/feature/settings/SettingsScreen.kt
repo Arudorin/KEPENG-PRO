@@ -68,6 +68,7 @@ import com.example.ui.theme.DeepCarmine
 import com.example.ui.theme.NeonCrimson
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.SpaceGrotesk
+import com.example.ui.theme.SurfaceBase
 import com.example.ui.theme.SurfaceElevated
 import com.example.ui.theme.SurfaceInput
 import com.example.ui.theme.TacticalMint
@@ -75,6 +76,7 @@ import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
 import kotlinx.coroutines.launch
+import com.example.ui.theme.ElectricCyan
 
 @Composable
 fun SettingsScreen(
@@ -159,7 +161,7 @@ fun SettingsScreen(
             // 1. Rekening & Akun Keuangan (Moved here from main tabs)
             item {
                 SettingsSectionHeader("REKENING & DOMPET KEUANGAN")
-                GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16) {
+                GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16, backgroundColor = SurfaceBase) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier
@@ -176,7 +178,7 @@ fun SettingsScreen(
                                     modifier = Modifier
                                         .size(44.dp)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFF22222E)),
+                                        .background(SurfaceElevated),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -218,7 +220,7 @@ fun SettingsScreen(
             // 2. Financial Period
             item {
                 SettingsSectionHeader("PERIODE KEUANGAN")
-                GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16) {
+                GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16, backgroundColor = SurfaceBase) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier
@@ -389,7 +391,7 @@ fun SettingsScreen(
                         // Export CSV
                         SettingsActionRow(
                             icon = Icons.Default.Download,
-                            iconTint = Color(0xFF64B5F6),
+                            iconTint = ElectricCyan,
                             title = "Ekspor Transaksi (CSV)",
                             subtitle = "Format tabel kompatibel dengan Excel & Google Sheets",
                             onClick = {

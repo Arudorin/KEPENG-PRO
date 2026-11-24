@@ -386,7 +386,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         type = TransactionType.INCOME.name,
                         amount = 7500000L,
                         accountId = bankAcc,
-                        categoryId = "CAT_INC_0", // Gaji
+                        categoryId = "CAT_INC_1", // Gaji
                         date = twoDaysAgoEpoch,
                         note = "Gaji Bulanan"
                     ),
@@ -395,7 +395,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         type = TransactionType.EXPENSE.name,
                         amount = 45000L,
                         accountId = primaryAcc,
-                        categoryId = "CAT_FOOD",
+                        categoryId = "CAT_EXP_1",
                         date = todayEpoch,
                         note = "Makan siang ayam geprek & es teh"
                     ),
@@ -404,7 +404,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         type = TransactionType.EXPENSE.name,
                         amount = 28000L,
                         accountId = primaryAcc,
-                        categoryId = "CAT_FOOD",
+                        categoryId = "CAT_EXP_1",
                         date = todayEpoch,
                         note = "Kopi susu sore"
                     ),
@@ -413,7 +413,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         type = TransactionType.EXPENSE.name,
                         amount = 50000L,
                         accountId = primaryAcc,
-                        categoryId = "CAT_TRANSPORT",
+                        categoryId = "CAT_EXP_3",
                         date = yesterdayEpoch,
                         note = "Isi Pertamax motor"
                     ),
@@ -422,7 +422,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         type = TransactionType.EXPENSE.name,
                         amount = 175000L,
                         accountId = bankAcc,
-                        categoryId = "CAT_BILLS",
+                        categoryId = "CAT_EXP_4",
                         date = twoDaysAgoEpoch,
                         note = "Token listrik PLN"
                     )

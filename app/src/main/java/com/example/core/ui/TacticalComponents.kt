@@ -1,11 +1,5 @@
 package com.example.core.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,10 +42,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -63,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.DeepCarmine
 import com.example.ui.theme.NeonCrimson
+import com.example.ui.theme.OnAccent
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.SpaceGrotesk
 import com.example.ui.theme.SurfaceBase
@@ -74,17 +67,6 @@ import com.example.ui.theme.TextTertiary
 
 @Composable
 fun OfflineStatusBadge(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
-
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(9999.dp))
@@ -96,7 +78,6 @@ fun OfflineStatusBadge(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .size(6.dp)
-                .alpha(alpha)
                 .background(TacticalMint, CircleShape)
         )
         Spacer(modifier = Modifier.width(6.dp))
@@ -111,43 +92,24 @@ fun OfflineStatusBadge(modifier: Modifier = Modifier) {
 }
 
 /**
- * Dark Glassmorphism Card with frosted translucent gradient and glowing specular neon border
+ * Flat tonal surface card with a restrained border and clear content grouping.
  */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    cornerRadius: Int = 18,
-    borderColor: Color = Color(0x66FF003C),
+    cornerRadius: Int = 20,
+    borderColor: Color = OutlineHairline,
     backgroundColor: Color? = null,
     content: @Composable () -> Unit
 ) {
     val shape = RoundedCornerShape(cornerRadius.dp)
-    val brush = if (backgroundColor != null) {
-        Brush.verticalGradient(listOf(backgroundColor, backgroundColor.copy(alpha = 0.85f)))
-    } else {
-        Brush.verticalGradient(
-            listOf(
-                Color(0xF2141420),
-                Color(0xE608080E)
-            )
-        )
-    }
+    val surfaceColor = backgroundColor ?: SurfaceBase
 
     Box(
         modifier = modifier
             .clip(shape)
-            .background(brush)
-            .border(
-                width = 1.3.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        borderColor,
-                        borderColor.copy(alpha = 0.35f),
-                        Color(0x0CFFFFFF)
-                    )
-                ),
-                shape = shape
-            )
+            .background(surfaceColor)
+            .border(width = 1.dp, color = borderColor.copy(alpha = 0.72f), shape = shape)
     ) {
         content()
     }
@@ -162,10 +124,10 @@ fun TacticalCard(
 ) {
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp)),
         color = backgroundColor,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         content = content
     )
 }
@@ -247,11 +209,11 @@ fun TacticalButton(
             enabled = enabled,
             colors = ButtonDefaults.buttonColors(
                 containerColor = NeonCrimson,
-                contentColor = TextPrimary,
+                contentColor = OnAccent,
                 disabledContainerColor = DeepCarmine.copy(alpha = 0.5f),
                 disabledContentColor = TextTertiary
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             modifier = modifier
                 .height(56.dp)
                 .fillMaxWidth()
@@ -272,7 +234,7 @@ fun TacticalButton(
                 contentColor = TextPrimary
             ),
             border = androidx.compose.foundation.BorderStroke(1.dp, OutlineHairline),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             modifier = modifier
                 .height(56.dp)
                 .fillMaxWidth()

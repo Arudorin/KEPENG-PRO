@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FloatingActionButton
@@ -31,16 +31,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,18 +57,19 @@ import com.example.core.ui.EmptyStateView
 import com.example.core.ui.TacticalCard
 import com.example.ui.theme.BackgroundRoot
 import com.example.ui.theme.NeonCrimson
+import com.example.ui.theme.OnAccent
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.PlusJakartaSans
 import com.example.ui.theme.SpaceGrotesk
 import com.example.ui.theme.SurfaceElevated
-import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.SurfaceBase
 import com.example.ui.theme.SurfaceInput
 import com.example.ui.theme.TacticalMint
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
-import kotlinx.coroutines.launch
 import java.time.LocalDate
+import com.example.ui.theme.ElectricCyan
 
 @Composable
 fun TransactionListScreen(
@@ -83,13 +79,8 @@ fun TransactionListScreen(
     currentPeriod: FinancialPeriod,
     onAddTransaction: () -> Unit,
     onEditTransaction: (TransactionEntity) -> Unit,
-    onDeleteTransaction: (TransactionEntity) -> Unit,
-    onRestoreTransaction: (TransactionEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
-
     var searchQuery by remember { mutableStateOf("") }
     var selectedTypeFilter by remember { mutableStateOf<String?>("ALL") }
 
@@ -110,16 +101,21 @@ fun TransactionListScreen(
         filteredTransactions.groupBy { it.date }
             .toSortedMap(compareByDescending { it })
     }
+    val visibleIncome = remember(transactions) {
+        transactions.filter { it.type == TransactionType.INCOME.name }.sumOf { it.amount }
+    }
+    val visibleExpense = remember(transactions) {
+        transactions.filter { it.type == TransactionType.EXPENSE.name }.sumOf { it.amount }
+    }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BackgroundRoot,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddTransaction,
                 containerColor = NeonCrimson,
-                contentColor = TextPrimary,
-                shape = RoundedCornerShape(12.dp),
+                contentColor = OnAccent,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.testTag("fab_add_transaction")
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Tambah Transaksi")
@@ -132,29 +128,34 @@ fun TransactionListScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Header
+            // Clear date-and-amount header distinguishes the ledger from the dashboard.
+            Text(
+                text = "Transaksi",
+                fontFamily = PlusJakartaSans,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Text(
+                text = currentPeriod.displayLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(SurfaceBase).border(1.dp, OutlineHairline, RoundedCornerShape(14.dp)).padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column {
-                    Text(
-                        text = "Riwayat Transaksi",
-                        fontFamily = PlusJakartaSans,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = currentPeriod.displayLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("MASUK BULAN INI", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    Text(MoneyFormatter.format(visibleIncome), style = MaterialTheme.typography.titleSmall, color = TacticalMint, fontWeight = FontWeight.Bold)
+                }
+                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                    Text("KELUAR BULAN INI", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    Text(MoneyFormatter.format(visibleExpense), style = MaterialTheme.typography.titleSmall, color = NeonCrimson, fontWeight = FontWeight.Bold)
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Search Bar
             OutlinedTextField(
@@ -197,6 +198,7 @@ fun TransactionListScreen(
             // Filter Chips Row (Enlarged to 48dp for easy thumb touch)
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(end = 20.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
@@ -214,11 +216,11 @@ fun TransactionListScreen(
                             .height(48.dp)
                             .clip(RoundedCornerShape(9999.dp))
                             .background(
-                                if (isSelected) NeonCrimson else Color(0xEE1E1E2C)
+                                if (isSelected) NeonCrimson else SurfaceElevated
                             )
                             .border(
                                 1.dp,
-                                if (isSelected) NeonCrimson else Color(0x33FFFFFF),
+                                if (isSelected) NeonCrimson else OutlineHairline,
                                 RoundedCornerShape(9999.dp)
                             )
                             .clickable { selectedTypeFilter = key }
@@ -231,7 +233,7 @@ fun TransactionListScreen(
                             fontFamily = SpaceGrotesk,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else TextSecondary
+                            color = if (isSelected) OnAccent else TextSecondary
                         )
                     }
                 }
@@ -302,20 +304,7 @@ fun TransactionListScreen(
                                 category = category,
                                 sourceAccount = sourceAccount,
                                 destAccount = destAccount,
-                                onClick = { onEditTransaction(tx) },
-                                onDelete = {
-                                    onDeleteTransaction(tx)
-                                    coroutineScope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = "Transaksi berhasil dihapus",
-                                            actionLabel = "Urungkan",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            onRestoreTransaction(tx)
-                                        }
-                                    }
-                                }
+                                onClick = { onEditTransaction(tx) }
                             )
                         }
                     }
@@ -331,8 +320,7 @@ fun TransactionRowItem(
     category: Category?,
     sourceAccount: AccountWithBalance?,
     destAccount: AccountWithBalance?,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
+    onClick: () -> Unit
 ) {
     TacticalCard(
         modifier = Modifier
@@ -392,7 +380,7 @@ fun TransactionRowItem(
             val amountColor = when (transaction.type) {
                 TransactionType.EXPENSE.name -> NeonCrimson
                 TransactionType.INCOME.name -> TacticalMint
-                else -> Color(0xFF64B5F6)
+                else -> ElectricCyan
             }
             val amountPrefix = when (transaction.type) {
                 TransactionType.EXPENSE.name -> "-"
@@ -408,20 +396,6 @@ fun TransactionRowItem(
                     fontWeight = FontWeight.Bold,
                     color = amountColor
                 )
-
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .testTag("delete_tx_${transaction.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Hapus",
-                        tint = TextTertiary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
             }
         }
     }

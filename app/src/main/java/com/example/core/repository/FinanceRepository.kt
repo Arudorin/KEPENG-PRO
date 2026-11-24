@@ -98,19 +98,71 @@ class FinanceRepository(private val database: AppDatabase) {
     // Mutation operations
     suspend fun insertTransaction(transaction: TransactionEntity) {
         transactionDao.insertTransaction(transaction)
+        // Kalau transaksi ini pembayaran cicilan/hutang, kembalikan progresnya
+        transaction.debtId?.let { applyDebtPayment(it, transaction.amount) }
     }
 
     suspend fun updateTransaction(transaction: TransactionEntity) {
+        val previous = transactionDao.getTransactionById(transaction.id)
         transactionDao.updateTransaction(transaction.copy(updatedAt = System.currentTimeMillis()))
+        // Nominal pembayaran diubah -> progres cicilan ikut disesuaikan
+        val debtId = transaction.debtId
+        if (debtId != null && previous != null && previous.amount != transaction.amount) {
+            revertDebtPayment(debtId, previous.amount)
+            applyDebtPayment(debtId, transaction.amount)
+        }
     }
 
     suspend fun deleteTransaction(id: String): TransactionEntity? {
         val existing = transactionDao.getTransactionById(id)
         if (existing != null) {
             transactionDao.deleteById(id)
+            // Menghapus pembayaran = membatalkan cicilan, jadi progresnya dikembalikan
+            existing.debtId?.let { revertDebtPayment(it, existing.amount) }
         }
         return existing
     }
+
+    /**
+     * Tambah progres pembayaran pada entitas hutang/piutang/cicilan.
+     * Dipakai saat pembayaran dicatat maupun saat transaksi pembayaran dipulihkan (undo).
+     */
+    private suspend fun applyDebtPayment(debtId: String, amount: Long) {
+        val debt = debtDao.getDebtById(debtId) ?: return
+        val newPaid = (debt.paidAmount + amount).coerceAtMost(debt.totalAmount)
+        debtDao.updateDebt(
+            debt.copy(
+                paidAmount = newPaid,
+                isSettled = newPaid >= debt.totalAmount,
+                paidTenorMonths = paidTenorFor(debt, newPaid)
+            )
+        )
+    }
+
+    /**
+     * Batalkan progres pembayaran ketika transaksi pembayaran dihapus.
+     */
+    private suspend fun revertDebtPayment(debtId: String, amount: Long) {
+        val debt = debtDao.getDebtById(debtId) ?: return
+        val newPaid = (debt.paidAmount - amount).coerceAtLeast(0L)
+        debtDao.updateDebt(
+            debt.copy(
+                paidAmount = newPaid,
+                isSettled = newPaid >= debt.totalAmount,
+                paidTenorMonths = paidTenorFor(debt, newPaid)
+            )
+        )
+    }
+
+    private fun paidTenorFor(debt: DebtEntity, paid: Long): Int =
+        if (debt.monthlyPayment > 0) {
+            (paid / debt.monthlyPayment).toInt().coerceAtMost(debt.totalTenorMonths)
+        } else {
+            // Tanpa nominal angsuran tetap: tenor dihitung dari proporsi terbayar
+            if (debt.totalAmount <= 0) 0
+            else ((paid.toDouble() / debt.totalAmount) * debt.totalTenorMonths).toInt()
+                .coerceIn(0, debt.totalTenorMonths)
+        }
 
     suspend fun getTransactionById(id: String): TransactionEntity? =
         transactionDao.getTransactionById(id)
@@ -190,9 +242,7 @@ class FinanceRepository(private val database: AppDatabase) {
     ) {
         val newPaid = debt.paidAmount + paymentAmount
         val isNowSettled = newPaid >= debt.totalAmount
-        val newPaidTenor = if (debt.monthlyPayment > 0) {
-            (newPaid / debt.monthlyPayment).toInt().coerceAtMost(debt.totalTenorMonths)
-        } else debt.paidTenorMonths + 1
+        val newPaidTenor = paidTenorFor(debt, newPaid)
 
         val updatedDebt = debt.copy(
             paidAmount = newPaid,
@@ -204,7 +254,7 @@ class FinanceRepository(private val database: AppDatabase) {
         // Create transaction: if paying HUTANG or CICILAN -> Expense. If receiving PIUTANG -> Income.
         val isExpense = debt.type == DebtType.HUTANG.name || debt.type == DebtType.CICILAN.name
         val txType = if (isExpense) TransactionType.EXPENSE.name else TransactionType.INCOME.name
-        val categoryId = if (isExpense) "CAT_DEBT" else "CAT_INC_4" // Cicilan & Hutang or Hadiah/Lain-lain
+        val categoryId = if (isExpense) "CAT_EXP_4" else "CAT_INC_4" // Tagihan & Utilitas / Lain-lain
 
         val transaction = TransactionEntity(
             id = UUID.randomUUID().toString(),
@@ -213,7 +263,8 @@ class FinanceRepository(private val database: AppDatabase) {
             accountId = accountId,
             categoryId = categoryId,
             date = DateUtils.toEpochDay(LocalDate.now()),
-            note = note ?: "Pembayaran: ${debt.title}"
+            note = note ?: "Pembayaran: ${debt.title}",
+            debtId = debt.id
         )
         transactionDao.insertTransaction(transaction)
     }

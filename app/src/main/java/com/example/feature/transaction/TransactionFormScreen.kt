@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,6 +39,10 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -85,7 +91,7 @@ import com.example.ui.theme.NeonCrimson
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.SpaceGrotesk
 import com.example.ui.theme.SurfaceElevated
-import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.SurfaceBase
 import com.example.ui.theme.SurfaceInput
 import androidx.activity.compose.BackHandler
 import com.example.ui.theme.TacticalMint
@@ -97,6 +103,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
+import com.example.ui.theme.ElectricCyan
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,10 +114,13 @@ fun TransactionFormScreen(
     lastUsedCategoryId: String?,
     initialTransaction: TransactionEntity? = null,
     onSave: (TransactionEntity, Boolean) -> Unit, // (entity, addAnother)
+    onDelete: (() -> Unit)? = null,
     onBack: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // Step state: 1 = Pilih Jenis, 2 = Masukkan Nominal (DANA keyboard), 3 = Detail & Simpan
     var currentStep by remember {
@@ -294,6 +304,9 @@ fun TransactionFormScreen(
                         onOpenDatePicker = { showDatePicker = true },
                         note = note,
                         onNoteChange = { note = it },
+                        onDelete = if (initialTransaction != null && onDelete != null) {
+                            { showDeleteConfirm = true }
+                        } else null,
                         onSave = {
                             val isSaveEnabled = amount > 0 && selectedAccountId.isNotBlank() &&
                                 (selectedType != TransactionType.TRANSFER || (selectedToAccountId.isNotBlank() && selectedAccountId != selectedToAccountId))
@@ -356,6 +369,42 @@ fun TransactionFormScreen(
             ) {
                 DatePicker(state = datePickerState)
             }
+        }
+
+        // Delete confirmation — a deliberate second step, never a single stray tap.
+        if (showDeleteConfirm && initialTransaction != null) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                containerColor = SurfaceBase,
+                title = {
+                    Text(
+                        text = "Hapus transaksi ini?",
+                        fontFamily = SpaceGrotesk,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Transaksi ${MoneyFormatter.format(initialTransaction.amount)} akan dihapus dari catatan dan saldo. Kamu masih bisa mengurungkannya sesaat setelah dihapus.",
+                        color = TextSecondary,
+                        fontFamily = SpaceGrotesk
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDeleteConfirm = false
+                        onDelete?.invoke()
+                    }) {
+                        Text("Hapus", color = NeonCrimson, fontWeight = FontWeight.Bold, fontFamily = SpaceGrotesk)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirm = false }) {
+                        Text("Batal", color = TextSecondary, fontFamily = SpaceGrotesk)
+                    }
+                }
+            )
         }
     }
 }
@@ -498,7 +547,7 @@ private fun Step1ChooseType(
                 .clickable { onSelectType(TransactionType.TRANSFER) }
                 .testTag("choose_type_transfer"),
             cornerRadius = 16,
-            borderColor = Color(0xFF64B5F6).copy(alpha = 0.4f)
+            borderColor = ElectricCyan.copy(alpha = 0.4f)
         ) {
             Row(
                 modifier = Modifier
@@ -510,13 +559,13 @@ private fun Step1ChooseType(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF64B5F6).copy(alpha = 0.15f)),
+                        .background(ElectricCyan.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.SwapHoriz,
                         contentDescription = null,
-                        tint = Color(0xFF64B5F6),
+                        tint = ElectricCyan,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -574,7 +623,7 @@ private fun Step2InputAmount(
             val typeColor = when (selectedType) {
                 TransactionType.EXPENSE -> NeonCrimson
                 TransactionType.INCOME -> TacticalMint
-                TransactionType.TRANSFER -> Color(0xFF64B5F6)
+                TransactionType.TRANSFER -> ElectricCyan
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -631,7 +680,7 @@ private fun Step2InputAmount(
                     color = when (selectedType) {
                         TransactionType.EXPENSE -> NeonCrimson
                         TransactionType.INCOME -> TacticalMint
-                        TransactionType.TRANSFER -> Color(0xFF64B5F6)
+                        TransactionType.TRANSFER -> ElectricCyan
                     },
                     modifier = Modifier.testTag("amount_display")
                 )
@@ -695,6 +744,7 @@ private fun Step3FillDetails(
     onOpenDatePicker: () -> Unit,
     note: String,
     onNoteChange: (String) -> Unit,
+    onDelete: (() -> Unit)? = null,
     onSave: () -> Unit
 ) {
     Column(
@@ -727,7 +777,7 @@ private fun Step3FillDetails(
                         color = when (selectedType) {
                             TransactionType.EXPENSE -> NeonCrimson
                             TransactionType.INCOME -> TacticalMint
-                            TransactionType.TRANSFER -> Color(0xFF64B5F6)
+                            TransactionType.TRANSFER -> ElectricCyan
                         }
                     )
                 }
@@ -743,7 +793,10 @@ private fun Step3FillDetails(
                 fontWeight = FontWeight.Bold,
                 fontFamily = SpaceGrotesk
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(end = 16.dp)
+                ) {
                 items(accounts) { acc ->
                     val isSelected = selectedAccountId == acc.id
                     Box(
@@ -774,7 +827,10 @@ private fun Step3FillDetails(
                 fontWeight = FontWeight.Bold,
                 fontFamily = SpaceGrotesk
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(end = 16.dp)
+                ) {
                 items(accounts) { acc ->
                     val isSelected = selectedToAccountId == acc.id
                     Box(
@@ -803,7 +859,10 @@ private fun Step3FillDetails(
                 fontWeight = FontWeight.Bold,
                 fontFamily = SpaceGrotesk
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(end = 16.dp)
+                ) {
                 items(accounts) { acc ->
                     val isSelected = selectedAccountId == acc.id
                     Box(
@@ -845,7 +904,10 @@ private fun Step3FillDetails(
                 fontFamily = SpaceGrotesk
             )
 
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(end = 16.dp)
+                ) {
                 items(categories) { cat ->
                     val isSelected = selectedCategoryId == cat.id
                     Row(
@@ -936,6 +998,33 @@ private fun Step3FillDetails(
             modifier = Modifier.fillMaxWidth(),
             testTag = "save_transaction_btn"
         )
+
+        // Deleting is only offered from the edit screen, and only behind a confirmation.
+        if (onDelete != null) {
+            OutlinedButton(
+                onClick = onDelete,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, NeonCrimson.copy(alpha = 0.6f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCrimson),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .testTag("delete_transaction_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Hapus Transaksi",
+                    fontFamily = SpaceGrotesk,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
     }

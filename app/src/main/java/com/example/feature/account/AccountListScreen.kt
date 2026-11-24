@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +65,7 @@ import com.example.core.ui.TacticalCard
 import com.example.ui.theme.BackgroundRoot
 import com.example.ui.theme.DeepCarmine
 import com.example.ui.theme.NeonCrimson
+import com.example.ui.theme.OnAccent
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.SpaceGrotesk
 import com.example.ui.theme.SurfaceBase
@@ -102,8 +104,8 @@ fun AccountListScreen(
             FloatingActionButton(
                 onClick = { showAddDialog = true },
                 containerColor = NeonCrimson,
-                contentColor = TextPrimary,
-                shape = RoundedCornerShape(12.dp),
+                contentColor = OnAccent,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.testTag("fab_add_account")
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Tambah Akun")
@@ -116,21 +118,31 @@ fun AccountListScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Header
+            // Accounts are an action-focused list: orient first, then scan owned accounts.
             Text(
-                text = "Akun Keuangan",
+                text = "Akun",
                 fontFamily = SpaceGrotesk,
-                fontSize = 22.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
             )
             Text(
-                text = "Kas, Rekening Bank, E-Wallet & Kartu Kredit",
+                text = "Saldo di setiap tempat",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                    .background(SurfaceBase).border(1.dp, OutlineHairline, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("${accounts.count { !it.isArchived }} akun aktif", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                Text(MoneyFormatter.format(accounts.filter { !it.isArchived && it.includeInTotal }.sumOf { it.currentBalance }), fontFamily = SpaceGrotesk, fontWeight = FontWeight.Bold, color = TextPrimary)
+            }
+            Spacer(modifier = Modifier.height(14.dp))
 
             LazyColumn(
                 modifier = Modifier.weight(1f),

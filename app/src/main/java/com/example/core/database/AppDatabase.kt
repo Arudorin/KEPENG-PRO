@@ -4,10 +4,13 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 
 @Database(
@@ -19,7 +22,7 @@ import java.util.UUID
         DebtEntity::class,
         RecurringRule::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -40,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "kepeng_finance.db"
                 )
+                    .addMigrations(MIGRATION_2_3)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
@@ -56,7 +60,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        suspend fun populateDefaultData(database: AppDatabase) {
+        /** v2 -> v3: tautkan transaksi pembayaran ke entitas hutang/piutang/cicilan. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN debtId TEXT")
+            }
+        }
+
+        // Serialisasi penyemaian: onCreate dan alur onboarding bisa memanggil ini
+        // hampir bersamaan; tanpa kunci, cek "sudah ada akun?" bisa lolos dua kali
+        // dan akun default terbuat ganda.
+        private val seedMutex = Mutex()
+
+        suspend fun populateDefaultData(database: AppDatabase) = seedMutex.withLock {
             val categoryDao = database.categoryDao()
             val accountDao = database.accountDao()
 

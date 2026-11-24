@@ -84,6 +84,7 @@ data class TransactionEntity(
     val date: Int, // LocalDate.toEpochDay()
     val note: String? = null,
     val recurringRuleId: String? = null,
+    val debtId: String? = null, // Jika transaksi ini pembayaran cicilan/hutang/piutang
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

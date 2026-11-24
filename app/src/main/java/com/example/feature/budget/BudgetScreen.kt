@@ -43,6 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +61,7 @@ import com.example.core.ui.TacticalButton
 import com.example.core.ui.TacticalCard
 import com.example.ui.theme.BackgroundRoot
 import com.example.ui.theme.NeonCrimson
+import com.example.ui.theme.OnAccent
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.PlusJakartaSans
 import com.example.ui.theme.SurfaceBase
@@ -111,8 +113,9 @@ fun BudgetScreen(
                     showBudgetDialog = true
                 },
                 containerColor = NeonCrimson,
-                contentColor = TextPrimary,
-                shape = RoundedCornerShape(12.dp),
+                contentColor = OnAccent,
+                shape = RoundedCornerShape(14.dp),
+                elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp, pressedElevation = 4.dp),
                 modifier = Modifier.testTag("fab_add_budget")
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Tambah Anggaran")
@@ -133,10 +136,10 @@ fun BudgetScreen(
             ) {
                 Column {
                     Text(
-                        text = "Anggaran Keuangan",
-                        fontFamily = PlusJakartaSans,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = "Anggaran",
+                                                fontFamily = PlusJakartaSans,
+                                                fontSize = 28.sp,
+                                                fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                     Text(

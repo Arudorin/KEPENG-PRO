@@ -54,10 +54,8 @@ import com.example.core.ui.TacticalCard
 import com.example.feature.transaction.TransactionRowItem
 import com.example.ui.theme.BackgroundRoot
 import com.example.ui.theme.NeonCrimson
-import com.example.ui.theme.OutlineBorder
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.SpaceGrotesk
-import com.example.ui.theme.SurfaceBase
 import com.example.ui.theme.SurfaceElevated
 import com.example.ui.theme.TacticalMint
 import com.example.ui.theme.TextPrimary
@@ -84,7 +82,6 @@ fun HomeScreen(
     onNavigateDebts: () -> Unit,
     onNavigateSettings: () -> Unit,
     onEditTransaction: (TransactionEntity) -> Unit,
-    onDeleteTransaction: (TransactionEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val totalHutang = remember(debts) {
@@ -143,8 +140,8 @@ fun HomeScreen(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(Color(0xEE1E1E2C))
-                        .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                        .background(SurfaceElevated)
+                        .border(1.dp, OutlineHairline, CircleShape)
                         .testTag("btn_home_settings")
                 ) {
                     Icon(
@@ -157,264 +154,102 @@ fun HomeScreen(
             }
         }
 
-        // 2. Cockpit Card: Total Balance + Daily Safe Spending Limit (Dark Glassmorphism)
+        // Balance is the anchor; supporting cash-flow figures sit in one open row.
         item {
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 18
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp, bottom = 4.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    // Header row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "TOTAL SALDO KAS BERSIH",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = SpaceGrotesk,
-                            letterSpacing = 0.08.sp
-                        )
-
-                        IconButton(
-                            onClick = onToggleBalanceHidden,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .testTag("btn_toggle_balance_hide")
-                        ) {
-                            Icon(
-                                imageVector = if (isBalanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "Sembunyikan Saldo",
-                                tint = TextSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Huge balance text
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = if (isBalanceHidden) "Rp ••••••••" else MoneyFormatter.format(totalBalance),
+                        text = "SALDO TERSEDIA",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextSecondary,
+                        fontWeight = FontWeight.SemiBold,
                         fontFamily = SpaceGrotesk,
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                        modifier = Modifier.testTag("home_total_balance")
+                        letterSpacing = 1.1.sp
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Daily Safe Limit & Remaining Days Dual Panel
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    IconButton(
+                        onClick = onToggleBalanceHidden,
+                        modifier = Modifier.size(40.dp).testTag("btn_toggle_balance_hide")
                     ) {
-                        // Jatah Belanja Hari Ini
-                        Box(
-                            modifier = Modifier
-                                .weight(1.1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF1B1B24))
-                                .border(1.dp, OutlineHairline, RoundedCornerShape(12.dp))
-                                .padding(12.dp)
-                        ) {
-                            Column {
-                                Text(
-                                    text = "JATAH BELANJA HARI INI",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
-                                    color = TacticalMint,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = SpaceGrotesk
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = if (isBalanceHidden) "Rp •••••" else "${MoneyFormatter.format(dailySafeAllowance)} / hari",
-                                    fontFamily = SpaceGrotesk,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "Batas aman pengeluaran",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontSize = 10.sp,
-                                    color = TextTertiary,
-                                    fontFamily = SpaceGrotesk
-                                )
-                            }
-                        }
-
-                        // Sisa Hari Periode
-                        Box(
-                            modifier = Modifier
-                                .weight(0.9f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF1B1B24))
-                                .border(1.dp, OutlineHairline, RoundedCornerShape(12.dp))
-                                .padding(12.dp)
-                        ) {
-                            Column {
-                                Text(
-                                    text = "SISA PERIODE",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
-                                    color = TextSecondary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = SpaceGrotesk
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "$remainingDays Hari Lagi",
-                                    fontFamily = SpaceGrotesk,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "s/d ${currentPeriod.endDate.format(DateTimeFormatter.ofPattern("d MMM"))}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontSize = 10.sp,
-                                    color = TextTertiary,
-                                    fontFamily = SpaceGrotesk
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = if (isBalanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = "Sembunyikan Saldo",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(21.dp)
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Integrated Cash Flow Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(TacticalMint, CircleShape)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Masuk: +${MoneyFormatter.format(periodSummary.totalIncome)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TacticalMint,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = SpaceGrotesk
-                            )
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(NeonCrimson, CircleShape)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Keluar: -${MoneyFormatter.format(periodSummary.totalExpense)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = NeonCrimson,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = SpaceGrotesk
-                            )
-                        }
+                }
+                Text(
+                    text = if (isBalanceHidden) "Rp ••••••••" else MoneyFormatter.format(totalBalance),
+                    fontFamily = SpaceGrotesk,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    letterSpacing = (-0.6).sp,
+                    modifier = Modifier.testTag("home_total_balance")
+                )
+                Spacer(modifier = Modifier.height(5.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Aman per hari", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (isBalanceHidden) "Rp •••••" else MoneyFormatter.format(dailySafeAllowance),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TacticalMint,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("· $remainingDays hari tersisa", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(1.dp)) {
+                    drawLine(OutlineHairline, androidx.compose.ui.geometry.Offset.Zero, androidx.compose.ui.geometry.Offset(size.width, 0f), 1.dp.toPx())
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("MASUK BULAN INI", style = MaterialTheme.typography.labelSmall, color = TextTertiary, letterSpacing = 0.5.sp)
+                        Spacer(modifier = Modifier.height(5.dp))
+                        Text("+${MoneyFormatter.format(periodSummary.totalIncome)}", style = MaterialTheme.typography.titleMedium, color = TacticalMint, fontWeight = FontWeight.SemiBold)
+                    }
+                    Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text("KELUAR BULAN INI", style = MaterialTheme.typography.labelSmall, color = TextTertiary, letterSpacing = 0.5.sp)
+                        Spacer(modifier = Modifier.height(5.dp))
+                        Text("−${MoneyFormatter.format(periodSummary.totalExpense)}", style = MaterialTheme.typography.titleMedium, color = NeonCrimson, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
 
-        // 3. Hutang, Piutang & Cicilan Widget
+        // Obligations are secondary: compact, directly scannable and linked to management.
         item {
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 16
+            Row(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                    .background(SurfaceElevated).clickable { onNavigateDebts() }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.CreditCard,
-                                contentDescription = null,
-                                tint = WarningAmber,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "KEWAJIBAN & CICILAN",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = SpaceGrotesk
-                            )
-                        }
-
-                        Text(
-                            text = "Buka Anggaran →",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = NeonCrimson,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = SpaceGrotesk,
-                            modifier = Modifier.clickable { onNavigateDebts() }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Total Sisa Hutang/Cicilan",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextTertiary,
-                                fontFamily = SpaceGrotesk
-                            )
-                            Text(
-                                text = MoneyFormatter.format(totalHutang),
-                                fontFamily = SpaceGrotesk,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (totalHutang > 0) NeonCrimson else TextPrimary
-                            )
-                        }
-
-                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "Total Piutang Anda",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextTertiary,
-                                fontFamily = SpaceGrotesk
-                            )
-                            Text(
-                                text = MoneyFormatter.format(totalPiutang),
-                                fontFamily = SpaceGrotesk,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TacticalMint
-                            )
-                        }
-                    }
+                Icon(Icons.Default.CreditCard, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Hutang & cicilan", style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text("Sisa ${MoneyFormatter.format(totalHutang)}  ·  Piutang ${MoneyFormatter.format(totalPiutang)}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                 }
+                Icon(Icons.Default.ArrowForward, contentDescription = "Buka anggaran", tint = TextTertiary, modifier = Modifier.size(18.dp))
             }
         }
 
         // 4. Quick Execution CTA Button (Large 56dp)
         item {
             TacticalButton(
-                text = "+ CATAT TRANSAKSI CEPAT",
+                text = "+ CATAT TRANSAKSI",
                 onClick = onAddTransaction,
                 modifier = Modifier.fillMaxWidth(),
                 testTag = "home_quick_add_btn"
@@ -477,8 +312,7 @@ fun HomeScreen(
                     category = category,
                     sourceAccount = sourceAccount,
                     destAccount = destAccount,
-                    onClick = { onEditTransaction(tx) },
-                    onDelete = { onDeleteTransaction(tx) }
+                    onClick = { onEditTransaction(tx) }
                 )
             }
         }

@@ -10,6 +10,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -68,6 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,11 +85,13 @@ import com.example.core.ui.GlassCard
 import com.example.core.ui.NumericKeypad
 import com.example.core.ui.TacticalButton
 import com.example.ui.theme.BackgroundRoot
-import com.example.ui.theme.DeepCarmine
 import com.example.ui.theme.NeonCrimson
+import com.example.ui.theme.OnAccent
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.SpaceGrotesk
+import com.example.ui.theme.SurfaceBase
 import com.example.ui.theme.SurfaceElevated
+import com.example.ui.theme.SurfaceHighlight
 import com.example.ui.theme.SurfaceInput
 import com.example.ui.theme.TacticalMint
 import com.example.ui.theme.TextPrimary
@@ -98,6 +103,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
+import com.example.ui.theme.SurfaceHighlight
 
 @Composable
 fun DebtInstallmentScreen(
@@ -189,95 +195,44 @@ fun DebtInstallmentScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Summary Telemetry Cards in GlassCard
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            // One obligation summary with the balance first; type details stay secondary.
+            Column(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                    .background(SurfaceBase).border(1.dp, OutlineHairline, RoundedCornerShape(18.dp))
+                    .padding(18.dp)
             ) {
-                // Hutang
-                GlassCard(
-                    modifier = Modifier.weight(1f),
-                    cornerRadius = 14,
-                    borderColor = NeonCrimson.copy(alpha = 0.4f)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "HUTANG SAYA",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = SpaceGrotesk,
-                            fontSize = 10.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = MoneyFormatter.format(totalHutang),
-                            fontFamily = SpaceGrotesk,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NeonCrimson
-                        )
+                Text("TOTAL KEWAJIBAN", style = MaterialTheme.typography.labelMedium, color = TextSecondary, letterSpacing = 1.sp)
+                Spacer(modifier = Modifier.height(5.dp))
+                Text(
+                    MoneyFormatter.format(totalHutang + totalPiutang + totalCicilan),
+                    fontFamily = SpaceGrotesk,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("HUTANG", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
+                        Text(MoneyFormatter.format(totalHutang), style = MaterialTheme.typography.titleSmall, color = NeonCrimson, fontWeight = FontWeight.SemiBold)
                     }
-                }
-
-                // Piutang
-                GlassCard(
-                    modifier = Modifier.weight(1f),
-                    cornerRadius = 14,
-                    borderColor = TacticalMint.copy(alpha = 0.4f)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "PIUTANG SAYA",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = SpaceGrotesk,
-                            fontSize = 10.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = MoneyFormatter.format(totalPiutang),
-                            fontFamily = SpaceGrotesk,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TacticalMint
-                        )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("CICILAN", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
+                        Text(MoneyFormatter.format(totalCicilan), style = MaterialTheme.typography.titleSmall, color = WarningAmber, fontWeight = FontWeight.SemiBold)
                     }
-                }
-
-                // Cicilan
-                GlassCard(
-                    modifier = Modifier.weight(1f),
-                    cornerRadius = 14,
-                    borderColor = WarningAmber.copy(alpha = 0.4f)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "SISA CICILAN",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = SpaceGrotesk,
-                            fontSize = 10.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = MoneyFormatter.format(totalCicilan),
-                            fontFamily = SpaceGrotesk,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WarningAmber
-                        )
+                    Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text("PIUTANG", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
+                        Text(MoneyFormatter.format(totalPiutang), style = MaterialTheme.typography.titleSmall, color = TacticalMint, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Filter Chips (Enlarged to 48dp with pill shape)
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(end = 20.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
@@ -294,8 +249,8 @@ fun DebtInstallmentScreen(
                         modifier = Modifier
                             .height(48.dp)
                             .clip(RoundedCornerShape(9999.dp))
-                            .background(if (isSelected) NeonCrimson else Color(0xEE1E1E2C))
-                            .border(1.dp, if (isSelected) NeonCrimson else Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
+                            .background(if (isSelected) NeonCrimson else SurfaceElevated)
+                            .border(1.dp, if (isSelected) NeonCrimson else OutlineHairline, RoundedCornerShape(9999.dp))
                             .clickable { selectedFilter = key }
                             .padding(horizontal = 20.dp)
                             .testTag("filter_debt_$key"),
@@ -305,7 +260,7 @@ fun DebtInstallmentScreen(
                             text = label,
                             fontFamily = SpaceGrotesk,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (isSelected) Color.White else TextSecondary,
+                            color = if (isSelected) OnAccent else TextSecondary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
                     }
@@ -578,12 +533,13 @@ fun AddDebtWizard(
                     }
 
                     // LANGKAH 2: Masukkan Nominal & Tenor
-                    2 -> Column(
+                    2 -> Column(modifier = Modifier.fillMaxSize()) {
+                      Column(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .weight(1f)
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
+                      ) {
                         // Amount Card
                         GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 18) {
                             Column(
@@ -645,8 +601,8 @@ fun AddDebtWizard(
                                             .weight(1f)
                                             .height(44.dp)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(if (isSelected) WarningAmber.copy(alpha = 0.2f) else Color(0xEE1E1E2C))
-                                            .border(1.dp, if (isSelected) WarningAmber else Color(0x33FFFFFF), RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) WarningAmber.copy(alpha = 0.2f) else SurfaceElevated)
+                                            .border(1.dp, if (isSelected) WarningAmber else OutlineHairline, RoundedCornerShape(10.dp))
                                             .clickable { tenorMonths = t },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -680,6 +636,7 @@ fun AddDebtWizard(
                             onClear = { amount = 0L }
                         )
 
+                      }
                         Spacer(modifier = Modifier.height(8.dp))
 
                         TacticalButton(
@@ -818,7 +775,7 @@ fun AddDebtWizard(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(96.dp))
                     }
                 }
             }
@@ -880,7 +837,7 @@ fun DebtItemCard(
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         cornerRadius = 16,
-        borderColor = if (debt.isSettled) TacticalMint.copy(alpha = 0.4f) else Color(0x33FFFFFF)
+        borderColor = if (debt.isSettled) TacticalMint.copy(alpha = 0.4f) else OutlineHairline
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -985,7 +942,7 @@ fun DebtItemCard(
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
                 color = typeColor,
-                trackColor = Color(0xFF242434)
+                trackColor = SurfaceHighlight
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -1009,7 +966,7 @@ fun DebtItemCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF222230))
+                                .background(SurfaceElevated)
                                 .border(1.dp, OutlineHairline, RoundedCornerShape(8.dp))
                                 .clickable { onPay() }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -1047,9 +1004,11 @@ fun PaymentDialog(
     onConfirm: (Long, String, String?) -> Unit
 ) {
     val remaining = (debt.totalAmount - debt.paidAmount).coerceAtLeast(0L)
-    var paymentAmount by remember {
-        mutableLongStateOf(debt.monthlyPayment ?: remaining)
+    // Nominal bisa diketik bebas. Kalau ada angsuran tetap, isi otomatis 1x angsuran.
+    var amountText by remember {
+        mutableStateOf(if (debt.monthlyPayment > 0) debt.monthlyPayment.toString() else "")
     }
+    val paymentAmount = amountText.toLongOrNull() ?: 0L
     var selectedAccountId by remember {
         mutableStateOf(debt.accountId ?: accounts.firstOrNull()?.id ?: "")
     }
@@ -1081,8 +1040,8 @@ fun PaymentDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF222230))
-                                .clickable { paymentAmount = debt.monthlyPayment }
+                                .background(SurfaceElevated)
+                                .clickable { amountText = debt.monthlyPayment.toString() }
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text("1x Angsuran", color = WarningAmber, fontSize = 11.sp, fontFamily = SpaceGrotesk)
@@ -1091,20 +1050,45 @@ fun PaymentDialog(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF222230))
-                            .clickable { paymentAmount = remaining }
+                            .background(SurfaceElevated)
+                            .clickable { amountText = remaining.toString() }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text("Lunasi Semua", color = TacticalMint, fontSize = 11.sp, fontFamily = SpaceGrotesk)
                     }
                 }
 
-                Text(
-                    text = "Nominal: ${MoneyFormatter.format(paymentAmount)}",
-                    fontFamily = SpaceGrotesk,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = NeonCrimson
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { input -> amountText = input.filter { it.isDigit() }.take(12) },
+                    label = { Text("Nominal pembayaran", color = TextSecondary, fontFamily = SpaceGrotesk) },
+                    leadingIcon = {
+                        Text("Rp", color = TextSecondary, fontFamily = SpaceGrotesk, fontWeight = FontWeight.Bold)
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    isError = paymentAmount > remaining,
+                    supportingText = {
+                        Text(
+                            text = if (paymentAmount > remaining) {
+                                "Melebihi sisa ${MoneyFormatter.format(remaining)}"
+                            } else {
+                                "Maksimal ${MoneyFormatter.format(remaining)}"
+                            },
+                            color = if (paymentAmount > remaining) NeonCrimson else TextTertiary,
+                            fontFamily = SpaceGrotesk,
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = NeonCrimson,
+                        unfocusedTextColor = NeonCrimson,
+                        focusedBorderColor = NeonCrimson,
+                        unfocusedBorderColor = OutlineHairline,
+                        focusedContainerColor = SurfaceInput,
+                        unfocusedContainerColor = SurfaceInput
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 // Select Account
@@ -1121,7 +1105,7 @@ fun PaymentDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) NeonCrimson.copy(alpha = 0.2f) else Color(0xFF1E1E28))
+                                .background(if (isSelected) NeonCrimson.copy(alpha = 0.2f) else SurfaceElevated)
                                 .border(1.dp, if (isSelected) NeonCrimson else OutlineHairline, RoundedCornerShape(8.dp))
                                 .clickable { selectedAccountId = acc.id }
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -1159,7 +1143,7 @@ fun PaymentDialog(
             TextButton(
                 onClick = {
                     if (paymentAmount > 0 && selectedAccountId.isNotBlank()) {
-                        onConfirm(paymentAmount, selectedAccountId, note.ifBlank { null })
+                        onConfirm(paymentAmount.coerceAtMost(remaining), selectedAccountId, note.ifBlank { null })
                     }
                 }
             ) {

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -40,25 +41,40 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import androidx.core.content.FileProvider
+import androidx.compose.ui.platform.LocalContext
+import com.example.core.database.AccountWithBalance
 import com.example.core.database.Category
+import com.example.core.export.ReportPdfExporter
+import com.example.core.export.ReportPdfModel
 import com.example.core.database.CategorySpend
 import com.example.core.database.TransactionEntity
 import com.example.core.database.TransactionType
 import com.example.core.money.MoneyFormatter
 import com.example.core.repository.PeriodSummary
+import com.example.core.time.DateUtils
 import com.example.core.time.FinancialPeriod
 import com.example.core.ui.CategoryGlyph
+import com.example.core.ui.TacticalButton
 import com.example.core.ui.EmptyStateView
 import com.example.core.ui.GlassCard
 import com.example.ui.theme.BackgroundRoot
 import com.example.ui.theme.NeonCrimson
 import com.example.ui.theme.OutlineHairline
 import com.example.ui.theme.SpaceGrotesk
+import com.example.ui.theme.SurfaceBase
 import com.example.ui.theme.SurfaceElevated
 import com.example.ui.theme.TacticalMint
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
+import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.WarningAmber
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 @Composable
 fun ReportScreen(
@@ -67,11 +83,14 @@ fun ReportScreen(
     categorySpends: List<CategorySpend>,
     categories: List<Category>,
     allPeriodTransactions: List<TransactionEntity>,
+    accounts: List<AccountWithBalance>,
+    totalBalance: Long,
     onPreviousPeriod: () -> Unit,
     onNextPeriod: () -> Unit,
     onCategoryDrillDown: (Category) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val totalIncome = periodSummary.totalIncome
     val totalExpense = periodSummary.totalExpense
     val netBalance = periodSummary.netBalance
@@ -89,28 +108,37 @@ fun ReportScreen(
         categorySpends.sortedByDescending { it.totalAmount }
     }
 
-    // Weekly data breakdown for the bar chart (4 weeks)
-    data class WeeklyFlow(val label: String, val income: Long, val expense: Long)
-    val weeklyStats = remember(allPeriodTransactions, currentPeriod) {
-        val totalDays = maxOf(1, java.time.temporal.ChronoUnit.DAYS.between(currentPeriod.startDate, currentPeriod.endDate).toInt() + 1)
-        val daysPerWeek = (totalDays / 4).coerceAtLeast(7)
-        val startEpoch = currentPeriod.startDate.toEpochDay()
-
-        (0..3).map { weekIdx ->
-            val wStart = startEpoch + (weekIdx * daysPerWeek)
-            val wEnd = if (weekIdx == 3) currentPeriod.endDate.toEpochDay() else wStart + daysPerWeek - 1
-
-            val weekTxs = allPeriodTransactions.filter { it.date in wStart..wEnd }
-            val wIncome = weekTxs.filter { it.type == TransactionType.INCOME.name }.sumOf { it.amount }
-            val wExpense = weekTxs.filter { it.type == TransactionType.EXPENSE.name }.sumOf { it.amount }
-
-            WeeklyFlow(label = "M${weekIdx + 1}", income = wIncome, expense = wExpense)
+    // Period span, pace and per-day flows — all derived from the period's own transactions.
+    val periodDays = remember(currentPeriod) {
+        maxOf(1, ChronoUnit.DAYS.between(currentPeriod.startDate, currentPeriod.endDate).toInt() + 1)
+    }
+    val elapsedDays = remember(currentPeriod, periodDays) {
+        val today = LocalDate.now()
+        when {
+            today.isBefore(currentPeriod.startDate) -> 1
+            today.isAfter(currentPeriod.endDate) -> periodDays
+            else -> (ChronoUnit.DAYS.between(currentPeriod.startDate, today).toInt() + 1).coerceIn(1, periodDays)
         }
     }
+    val avgExpensePerDay = totalExpense / maxOf(1, elapsedDays)
 
-    val maxWeeklyFlow = remember(weeklyStats) {
-        maxOf(1L, weeklyStats.maxOf { maxOf(it.income, it.expense) })
+    data class DayFlow(val day: LocalDate, val expense: Long)
+
+    val dailyFlows = remember(allPeriodTransactions, currentPeriod, periodDays) {
+        val byDay = allPeriodTransactions.groupBy { it.date }
+        (0 until periodDays).map { index ->
+            val day = currentPeriod.startDate.plusDays(index.toLong())
+            val dayTxs = byDay[day.toEpochDay().toInt()].orEmpty()
+            DayFlow(
+                day = day,
+                expense = dayTxs.filter { it.type == TransactionType.EXPENSE.name }.sumOf { it.amount }
+            )
+        }
     }
+    val maxDayExpense = remember(dailyFlows) { maxOf(1L, dailyFlows.maxOfOrNull { it.expense } ?: 0L) }
+    val busiestDay = remember(dailyFlows) { dailyFlows.maxByOrNull { it.expense }?.takeIf { it.expense > 0 } }
+    val activeDayCount = remember(dailyFlows) { dailyFlows.count { it.expense > 0 } }
+    val shortDayFormatter = remember { DateTimeFormatter.ofPattern("d MMM", Locale("id", "ID")) }
 
     LazyColumn(
         modifier = modifier
@@ -131,8 +159,8 @@ fun ReportScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(0xEE1E1E2C))
-                        .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                        .background(SurfaceElevated)
+                        .border(1.dp, OutlineHairline, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -144,14 +172,14 @@ fun ReportScreen(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Laporan Arus Kas",
+                        text = "Laporan",
                         fontFamily = SpaceGrotesk,
-                        fontSize = 20.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                     Text(
-                        text = currentPeriod.displayLabel,
+                        text = "Arus kas · ${currentPeriod.displayLabel}",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary,
                         fontFamily = SpaceGrotesk
@@ -163,8 +191,8 @@ fun ReportScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(0xEE1E1E2C))
-                        .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                        .background(SurfaceElevated)
+                        .border(1.dp, OutlineHairline, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -283,7 +311,7 @@ fun ReportScreen(
                                 text = if (savingsRate >= 30) "Sangat Baik (≥30%)" else if (savingsRate > 0) "Cukup Baik" else "Waspada",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (savingsRate >= 30) TacticalMint else if (savingsRate > 0) Color(0xFFFFA000) else NeonCrimson,
+                                color = if (savingsRate >= 30) TacticalMint else if (savingsRate > 0) WarningAmber else NeonCrimson,
                                 fontFamily = SpaceGrotesk
                             )
                         }
@@ -295,16 +323,119 @@ fun ReportScreen(
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(4.dp)),
                             color = TacticalMint,
-                            trackColor = Color(0xFF242434),
+                            trackColor = SurfaceHighlight,
                         )
                     }
                 }
             }
         }
 
-        // 3. Visual Cash Flow Bar Chart (Grafik Batang 4 Minggu)
+        // 2b. Export laporan ke PDF
+        item {
+            TacticalButton(
+                text = "EKSPOR LAPORAN (PDF)",
+                onClick = {
+                    val model = ReportPdfModel(
+                        periodLabel = currentPeriod.displayLabel,
+                        periodStartLabel = shortDayFormatter.format(currentPeriod.startDate),
+                        periodEndLabel = shortDayFormatter.format(currentPeriod.endDate),
+                        totalIncome = totalIncome,
+                        totalExpense = totalExpense,
+                        netBalance = netBalance,
+                        savingsRatioPercent = savingsRate,
+                        avgExpensePerDay = avgExpensePerDay,
+                        activeDays = activeDayCount,
+                        elapsedDays = elapsedDays,
+                        busiestDayLabel = busiestDay?.let { shortDayFormatter.format(it.day) },
+                        busiestDayAmount = busiestDay?.expense ?: 0L,
+                        categories = sortedCategorySpends.map { spend ->
+                            val name = categories.find { it.id == spend.categoryId }?.name ?: "Lainnya"
+                            ReportPdfModel.CategoryLine(
+                                name = name,
+                                amount = spend.totalAmount,
+                                percent = if (totalExpense > 0) {
+                                    ((spend.totalAmount.toDouble() / totalExpense) * 100).toInt()
+                                } else 0
+                            )
+                        },
+                        dailyExpenses = dailyFlows.map { flow ->
+                            ReportPdfModel.DayBar(
+                                dayOfMonth = flow.day.dayOfMonth,
+                                amount = flow.expense
+                            )
+                        },
+                        balanceTotal = totalBalance,
+                        balances = accounts.map { acc ->
+                            ReportPdfModel.AccountLine(
+                                name = acc.name,
+                                amount = acc.currentBalance,
+                                includeInTotal = acc.includeInTotal
+                            )
+                        }
+                    )
+                    val file = ReportPdfExporter.export(context, model)
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                    val share = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, "Laporan KEPENG ${currentPeriod.displayLabel}")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(share, "Simpan / bagikan laporan PDF"))
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // 3. Period summary tiles — pace, coverage, peak day, biggest expense
         item {
             GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 18) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "RINGKASAN PERIODE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = SpaceGrotesk,
+                        letterSpacing = 0.08.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatTile(
+                            label = "RATA-RATA / HARI",
+                            value = MoneyFormatter.format(avgExpensePerDay),
+                            caption = "dari $elapsedDays hari berjalan",
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatTile(
+                            label = "HARI AKTIF",
+                            value = "$activeDayCount hari",
+                            caption = "ada pengeluaran",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatTile(
+                            label = "HARI TERBOROS",
+                            value = busiestDay?.day?.format(shortDayFormatter) ?: "—",
+                            caption = busiestDay?.let { MoneyFormatter.format(it.expense) } ?: "belum ada data",
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatTile(
+                            label = "SISA SALDO",
+                            value = MoneyFormatter.format(totalBalance),
+                            caption = "${accounts.size} akun aktif",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 4. Daily spending rhythm for the whole period
+        item {
+            GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 18, backgroundColor = SurfaceBase) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -312,80 +443,72 @@ fun ReportScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "GRAFIK ARUS KAS MINGGUAN",
+                            text = "POLA PENGELUARAN HARIAN",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary,
                             fontWeight = FontWeight.Bold,
                             fontFamily = SpaceGrotesk,
                             letterSpacing = 0.08.sp
                         )
-
-                        // Legend
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(8.dp).background(TacticalMint, CircleShape))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Masuk", fontSize = 10.sp, color = TextSecondary, fontFamily = SpaceGrotesk)
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Box(modifier = Modifier.size(8.dp).background(NeonCrimson, CircleShape))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Keluar", fontSize = 10.sp, color = TextSecondary, fontFamily = SpaceGrotesk)
-                        }
+                        Text(
+                            text = "$periodDays hari",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp,
+                            color = TextTertiary,
+                            fontFamily = SpaceGrotesk
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // 4-Column Bar Visualizer
+                    val peakDay = busiestDay?.day
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(130.dp),
-                        horizontalArrangement = Arrangement.SpaceAround,
+                            .height(96.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        weeklyStats.forEach { week ->
-                            val incomeFraction = if (maxWeeklyFlow > 0) (week.income.toFloat() / maxWeeklyFlow.toFloat()).coerceIn(0.04f, 1f) else 0.04f
-                            val expenseFraction = if (maxWeeklyFlow > 0) (week.expense.toFloat() / maxWeeklyFlow.toFloat()).coerceIn(0.04f, 1f) else 0.04f
-
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Bottom,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.Bottom,
-                                    modifier = Modifier.height(100.dp)
-                                ) {
-                                    // Income Bar
-                                    Box(
-                                        modifier = Modifier
-                                            .width(14.dp)
-                                            .fillMaxHeight(fraction = incomeFraction)
-                                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                            .background(TacticalMint)
+                        dailyFlows.forEach { flow ->
+                            val fraction = (flow.expense.toFloat() / maxDayExpense.toFloat()).coerceIn(0f, 1f)
+                            val isPeak = peakDay != null && flow.day == peakDay
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(if (flow.expense <= 0L) 0.02f else fraction.coerceAtLeast(0.06f))
+                                    .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                                    .background(
+                                        when {
+                                            isPeak -> NeonCrimson
+                                            flow.expense > 0L -> NeonCrimson.copy(alpha = 0.45f)
+                                            else -> OutlineHairline
+                                        }
                                     )
-                                    // Expense Bar
-                                    Box(
-                                        modifier = Modifier
-                                            .width(14.dp)
-                                            .fillMaxHeight(fraction = expenseFraction)
-                                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                            .background(NeonCrimson)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = week.label,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextSecondary,
-                                    fontFamily = SpaceGrotesk
-                                )
-                            }
+                            )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            text = currentPeriod.startDate.format(shortDayFormatter),
+                            fontSize = 10.sp,
+                            color = TextTertiary,
+                            fontFamily = SpaceGrotesk
+                        )
+                        Text(
+                            text = "Puncak: ${peakDay?.format(shortDayFormatter) ?: "—"}",
+                            fontSize = 10.sp,
+                            color = TextTertiary,
+                            fontFamily = SpaceGrotesk
+                        )
+                        Text(
+                            text = currentPeriod.endDate.format(shortDayFormatter),
+                            fontSize = 10.sp,
+                            color = TextTertiary,
+                            fontFamily = SpaceGrotesk
+                        )
                     }
                 }
             }
@@ -482,8 +605,96 @@ fun ReportScreen(
                                 .height(6.dp)
                                 .clip(RoundedCornerShape(3.dp)),
                             color = NeonCrimson,
-                            trackColor = Color(0xFF242434)
+                            trackColor = SurfaceHighlight
                         )
+                    }
+                }
+            }
+        }
+
+        // 5. Sisa saldo seluruh akun
+        item {
+            Text(
+                text = "Sisa Saldo",
+                fontFamily = SpaceGrotesk,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+        }
+
+        item {
+            GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "TOTAL DI SEMUA AKUN",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = SpaceGrotesk,
+                                letterSpacing = 0.08.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${accounts.size} akun terpantau",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 11.sp,
+                                color = TextTertiary,
+                                fontFamily = SpaceGrotesk
+                            )
+                        }
+                        Text(
+                            text = MoneyFormatter.format(totalBalance),
+                            fontFamily = SpaceGrotesk,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (totalBalance < 0) NeonCrimson else TacticalMint
+                        )
+                    }
+
+                    if (accounts.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = OutlineHairline, thickness = 1.dp)
+                    }
+
+                    accounts.forEach { acc ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = acc.name,
+                                    fontFamily = SpaceGrotesk,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = if (acc.includeInTotal) "Masuk total" else "Tidak dihitung",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 10.sp,
+                                    color = TextTertiary,
+                                    fontFamily = SpaceGrotesk
+                                )
+                            }
+                            Text(
+                                text = MoneyFormatter.format(acc.currentBalance),
+                                fontFamily = SpaceGrotesk,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (acc.currentBalance < 0) NeonCrimson else TextPrimary
+                            )
+                        }
                     }
                 }
             }
@@ -492,5 +703,47 @@ fun ReportScreen(
         item {
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun StatTile(
+    label: String,
+    value: String,
+    caption: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceElevated)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp,
+            color = TextTertiary,
+            fontWeight = FontWeight.Bold,
+            fontFamily = SpaceGrotesk,
+            letterSpacing = 0.06.sp,
+            maxLines = 1
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            fontFamily = SpaceGrotesk,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            maxLines = 1
+        )
+        Text(
+            text = caption,
+            fontSize = 10.sp,
+            color = TextSecondary,
+            fontFamily = SpaceGrotesk,
+            maxLines = 1
+        )
     }
 }
